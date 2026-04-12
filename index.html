@@ -1,1137 +1,1134 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SLITHER BOTS</title>
-<style>
-  :root {
-    --bg0: #0a0b18;
-    --bg1: #1a1430;
-    --bg2: #2a1a55;
-    --accent: #ffd447;
-    --accent2: #ff3c85;
-    --accent3: #3cf0b0;
-    --accent4: #7bb7ff;
-    --text: #f2f0ff;
-    --dim:  #8a8bb0;
-  }
-  * { box-sizing: border-box; }
-  html, body {
-    margin: 0; padding: 0; height: 100%; overflow: hidden;
-    color: var(--text);
-    background: #05060f;
-    user-select: none;
-    -webkit-user-select: none;
-    font-family: "Courier New", "Lucida Console", monospace;
-    font-weight: bold;
-    letter-spacing: 1px;
-  }
-  /* Pixel-crisp canvas */
-  canvas {
-    display: block;
-    position: absolute; inset: 0;
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-  }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SERPENT.IO</title>
+    <style>
+        :root {
+            --bg-deep: #05060f;
+            --accent-cyan: #6ff;
+            --accent-blue: #68f;
+            --accent-purple: #c6f;
+            --text-dim: #7a8bac;
+        }
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0; padding: 0; height: 100%;
+            background: var(--bg-deep);
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+            color: #fff;
+            user-select: none;
+            cursor: crosshair;
+        }
+        canvas#game { display: block; position: fixed; inset: 0; }
+        canvas#minimap {
+            position: fixed; bottom: 20px; right: 20px;
+            width: 180px; height: 180px;
+            background: rgba(8, 12, 24, 0.75);
+            border: 1px solid rgba(120, 200, 255, 0.3);
+            border-radius: 14px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 0 40px rgba(80, 140, 255, 0.15);
+        }
 
-  /* ------------- HUD ------------- */
-  #hud {
-    position: absolute;
-    top: 0; left: 0; width: 100%;
-    padding: 16px 22px;
-    display: flex; justify-content: space-between; align-items: flex-start;
-    pointer-events: none;
-    font-size: 14px;
-    text-shadow: 2px 2px 0 #000, 0 0 8px rgba(0,0,0,.8);
-    z-index: 5;
-  }
-  #hud .panel {
-    background: rgba(10, 8, 30, .72);
-    border: 3px solid #3a2a80;
-    box-shadow: inset 0 0 0 2px #0a0518, 4px 4px 0 rgba(0,0,0,.45);
-    padding: 10px 14px;
-    image-rendering: pixelated;
-  }
-  #scorePanel .big { font-size: 22px; color: var(--accent); }
-  #scorePanel div { line-height: 1.4; }
-  #leaderboard { min-width: 210px; }
-  #leaderboard h3 {
-    margin: 0 0 8px 0; font-size: 13px;
-    color: var(--accent2); letter-spacing: 2px;
-    border-bottom: 2px solid #3a2a80;
-    padding-bottom: 4px;
-  }
-  #leaderboard .row { display: flex; justify-content: space-between; padding: 1px 0; font-size: 12px; }
-  #leaderboard .you { color: var(--accent); }
-  #leaderboard .dead { color: #555; text-decoration: line-through; }
-  .sw {
-    display: inline-block; width: 10px; height: 10px;
-    margin-right: 6px; vertical-align: middle;
-    border: 1px solid #000;
-  }
+        /* --- Overlays --- */
+        .overlay {
+            position: fixed; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(ellipse at center, #141a30 0%, #05060f 70%);
+            z-index: 20;
+            animation: fadeIn 0.4s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .overlay.hidden { display: none; }
 
-  /* ------------- Overlays ------------- */
-  .overlay {
-    position: absolute; inset: 0;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    text-align: center;
-    z-index: 10;
-    background:
-      repeating-linear-gradient(0deg,
-        rgba(0,0,0,.25) 0px, rgba(0,0,0,.25) 2px,
-        transparent 2px, transparent 4px),
-      radial-gradient(ellipse at 50% 40%, #2a1a55 0%, #0a0518 80%);
-    padding: 20px;
-  }
-  .overlay.hidden { display: none; }
+        .panel {
+            position: relative;
+            padding: 50px 70px;
+            background: linear-gradient(135deg, rgba(24, 30, 55, 0.85), rgba(14, 18, 36, 0.85));
+            border: 1px solid rgba(120, 180, 255, 0.25);
+            border-radius: 20px;
+            backdrop-filter: blur(16px);
+            box-shadow:
+                    0 0 80px rgba(100, 160, 255, 0.18),
+                    inset 0 0 40px rgba(100, 160, 255, 0.05);
+            text-align: center;
+            min-width: 440px;
+        }
+        .panel::before {
+            content: '';
+            position: absolute; inset: 0;
+            border-radius: 20px;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(120,200,255,0.6), transparent 40%, transparent 60%, rgba(200,120,255,0.6));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
 
-  .card {
-    background: #150c30;
-    border: 4px solid #ffd447;
-    box-shadow:
-      0 0 0 4px #2a1a55,
-      0 0 0 8px #ffd447,
-      0 0 0 12px #2a1a55,
-      12px 12px 0 rgba(0,0,0,.6);
-    padding: 34px 42px;
-    max-width: 620px;
-    width: 100%;
-    image-rendering: pixelated;
-  }
+        h1 {
+            font-size: 72px;
+            margin: 0;
+            letter-spacing: 8px;
+            background: linear-gradient(135deg, #6ff 0%, #68f 40%, #c6f 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 20px rgba(120, 180, 255, 0.4));
+            font-weight: 900;
+        }
+        .subtitle {
+            color: var(--text-dim);
+            letter-spacing: 4px;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 32px;
+            margin-top: 4px;
+        }
+        .section-label {
+            color: #6cf;
+            letter-spacing: 3px;
+            font-size: 11px;
+            text-transform: uppercase;
+            margin: 20px 0 12px;
+        }
 
-  h1.title {
-    font-size: 46px;
-    margin: 0 0 6px 0;
-    color: var(--accent);
-    text-shadow:
-      3px 0 0 #ff3c85, -3px 0 0 #3cf0b0,
-      0 3px 0 #000, 3px 3px 0 #000;
-    letter-spacing: 4px;
-  }
-  h2.title {
-    font-size: 38px;
-    margin: 0 0 14px 0;
-    color: var(--accent2);
-    text-shadow: 3px 3px 0 #000;
-    letter-spacing: 3px;
-  }
-  .subtitle {
-    color: var(--dim); font-size: 13px; margin-bottom: 22px;
-    letter-spacing: 2px;
-  }
+        .difficulty {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        .diff-btn {
+            width: 56px; height: 56px;
+            border-radius: 14px;
+            background: rgba(100, 180, 255, 0.08);
+            border: 2px solid rgba(120, 180, 255, 0.25);
+            color: #9cf;
+            font-size: 24px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .diff-btn:hover {
+            background: rgba(100, 180, 255, 0.18);
+            transform: translateY(-3px);
+            border-color: rgba(120, 200, 255, 0.6);
+        }
+        .diff-btn.selected {
+            background: linear-gradient(135deg, #68f, #c6f);
+            border-color: #fff;
+            color: #fff;
+            box-shadow: 0 6px 24px rgba(150, 120, 255, 0.55);
+            transform: translateY(-2px);
+        }
+        .diff-desc {
+            color: var(--text-dim);
+            font-size: 13px;
+            letter-spacing: 1px;
+            min-height: 18px;
+            margin-top: 14px;
+        }
 
-  /* Difficulty slider */
-  .slider-wrap { margin: 18px 0 26px 0; text-align:left; }
-  .slider-wrap label { font-size: 13px; color: var(--accent3); letter-spacing: 2px; }
-  .slider-value {
-    float: right;
-    font-size: 14px;
-    color: var(--accent);
-  }
-  input[type=range] {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 100%;
-    height: 16px;
-    background: #000;
-    border: 3px solid #3a2a80;
-    outline: none;
-    margin-top: 12px;
-    cursor: pointer;
-    image-rendering: pixelated;
-  }
-  input[type=range]::-webkit-slider-runnable-track {
-    background: linear-gradient(90deg,
-      #3cf0b0 0%, #3cf0b0 20%,
-      #7bb7ff 20%, #7bb7ff 40%,
-      #ffd447 40%, #ffd447 60%,
-      #ff9c2a 60%, #ff9c2a 80%,
-      #ff3c85 80%, #ff3c85 100%);
-    height: 10px;
-  }
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 18px; height: 22px;
-    background: #fff;
-    border: 3px solid #000;
-    margin-top: -6px;
-    box-shadow: 3px 0 0 #000, -3px 0 0 #000;
-    cursor: pointer;
-  }
-  input[type=range]::-moz-range-thumb {
-    width: 18px; height: 22px;
-    background: #fff;
-    border: 3px solid #000;
-    border-radius: 0;
-  }
+        .start-btn {
+            margin-top: 28px;
+            padding: 16px 56px;
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 4px;
+            background: linear-gradient(135deg, #6ff, #68f, #c6f);
+            background-size: 200% 200%;
+            border: none;
+            border-radius: 14px;
+            color: #fff;
+            cursor: pointer;
+            box-shadow: 0 0 40px rgba(120, 180, 255, 0.55);
+            transition: all 0.25s ease;
+            font-family: inherit;
+            animation: glow 3s ease infinite;
+        }
+        @keyframes glow {
+            0%, 100% { background-position: 0% 50%; }
+            50%      { background-position: 100% 50%; }
+        }
+        .start-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 0 60px rgba(120, 180, 255, 0.85);
+        }
 
-  .btn {
-    display: inline-block;
-    background: var(--accent);
-    color: #1a0a00;
-    border: 4px solid #000;
-    padding: 12px 36px;
-    font-size: 18px;
-    font-weight: bold;
-    letter-spacing: 3px;
-    cursor: pointer;
-    box-shadow: 0 6px 0 #8b5a00, 6px 6px 0 #000, 0 12px 24px rgba(0,0,0,.5);
-    font-family: inherit;
-    text-transform: uppercase;
-    image-rendering: pixelated;
-  }
-  .btn:hover { filter: brightness(1.15); }
-  .btn:active { transform: translate(2px, 4px); box-shadow: 0 2px 0 #8b5a00, 4px 4px 0 #000; }
+        .instructions {
+            margin-top: 28px;
+            font-size: 12px;
+            color: #567;
+            line-height: 1.8;
+            letter-spacing: 0.5px;
+        }
+        .instructions strong { color: #9cf; font-weight: 600; }
 
-  .btn.pink {
-    background: var(--accent2);
-    color: #fff;
-    box-shadow: 0 6px 0 #7a1f4e, 6px 6px 0 #000, 0 12px 24px rgba(0,0,0,.5);
-  }
-  .btn.pink:active { box-shadow: 0 2px 0 #7a1f4e, 4px 4px 0 #000; }
+        /* --- HUD --- */
+        .hud {
+            position: fixed;
+            top: 20px; left: 20px;
+            padding: 14px 22px;
+            background: rgba(8, 12, 24, 0.7);
+            border: 1px solid rgba(120, 200, 255, 0.25);
+            border-radius: 14px;
+            backdrop-filter: blur(12px);
+            font-size: 13px;
+            letter-spacing: 1.5px;
+            color: #9cf;
+            box-shadow: 0 0 30px rgba(80, 140, 255, 0.12);
+            min-width: 220px;
+        }
+        .hud .row { display: flex; justify-content: space-between; margin: 4px 0; }
+        .hud .label { color: var(--text-dim); text-transform: uppercase; font-size: 11px; }
+        .hud .val {
+            color: #fff;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        .progress {
+            height: 6px;
+            background: rgba(120, 180, 255, 0.15);
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6ff, #c6f);
+            border-radius: 3px;
+            transition: width 0.25s;
+        }
 
-  .instructions {
-    margin-top: 22px;
-    font-size: 11px;
-    color: var(--dim);
-    line-height: 1.8;
-    letter-spacing: 2px;
-  }
-  .instructions span { color: var(--accent3); }
+        .boost-hud {
+            position: fixed;
+            bottom: 36px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+        }
+        .boost-label {
+            color: #8ac;
+            font-size: 11px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .boost-label.ready { color: #6ff; text-shadow: 0 0 12px #6ff; }
+        .boost-bar {
+            width: 260px;
+            height: 8px;
+            background: rgba(120, 180, 255, 0.15);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid rgba(120, 180, 255, 0.2);
+        }
+        .boost-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6ff, #68f, #c6f);
+            transition: width 0.1s linear;
+            box-shadow: 0 0 12px #68f;
+        }
 
-  .stat-row { display:flex; gap:14px; justify-content:center; margin:16px 0 22px 0; }
-  .stat {
-    background: #000;
-    border: 3px solid #3a2a80;
-    padding: 10px 14px;
-    min-width: 110px;
-  }
-  .stat .n {
-    font-size: 26px; color: var(--accent);
-    display:block;
-    text-shadow: 2px 2px 0 #000;
-  }
-  .stat .l { font-size: 10px; color: var(--dim); letter-spacing: 2px; }
-
-  /* confetti for victory */
-  .confetti {
-    position: absolute; inset:0; overflow:hidden; pointer-events:none;
-  }
-  .confetti i {
-    position: absolute; top:-20px;
-    width: 8px; height: 12px;
-    animation: fall linear infinite;
-  }
-  @keyframes fall {
-    to { transform: translateY(110vh) rotate(540deg); }
-  }
-
-  /* marquee stars behind start screen */
-  .stars { position: absolute; inset: 0; overflow: hidden; pointer-events:none; z-index:-1; }
-  .stars i {
-    position: absolute;
-    width: 3px; height: 3px;
-    background: #fff;
-    box-shadow: 0 0 4px #fff;
-    animation: twinkle 3s ease-in-out infinite;
-  }
-  @keyframes twinkle {
-    0%,100% { opacity: .15; }
-    50%     { opacity: 1; }
-  }
-</style>
+        .hidden { display: none !important; }
+        kbd {
+            background: rgba(120, 180, 255, 0.12);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(120, 180, 255, 0.25);
+            font-size: 11px;
+            color: #9cf;
+        }
+    </style>
 </head>
 <body>
 
 <canvas id="game"></canvas>
+<canvas id="minimap" class="hidden"></canvas>
 
-<!-- In-game HUD -->
-<div id="hud" class="hidden">
-  <div id="scorePanel" class="panel">
-    <div style="color:var(--accent3)">[ PLAYER ]</div>
-    <div>LEN: <span id="hudLen" class="big">30</span></div>
-    <div>KILLS: <span id="hudKills">0</span> / 5</div>
-  </div>
-  <div id="leaderboard" class="panel">
-    <h3>&gt; LEADERBOARD</h3>
-    <div id="lbRows"></div>
-  </div>
+<div class="hud hidden" id="hud">
+    <div class="row"><span class="label">Orbs</span><span class="val"><span id="score">0</span> / 200</span></div>
+    <div class="progress"><div class="progress-fill" id="scoreFill" style="width:0%"></div></div>
+    <div class="row" style="margin-top:10px"><span class="label">Bots</span><span class="val" id="bots">5</span></div>
+    <div class="row"><span class="label">Length</span><span class="val" id="length">20</span></div>
+</div>
+
+<div class="boost-hud hidden" id="boostHud">
+    <div class="boost-label" id="boostLabel">Boost Cooldown</div>
+    <div class="boost-bar"><div class="boost-fill" id="boostFill" style="width:100%"></div></div>
 </div>
 
 <!-- Start Screen -->
-<div id="startScreen" class="overlay">
-  <div class="stars" id="stars"></div>
-  <div class="card">
-    <h1 class="title">SLITHER BOTS</h1>
-    <div class="subtitle">INFINITE WORLD &middot; 5 BOTS &middot; ONE SURVIVOR</div>
+<div class="overlay" id="startScreen">
+    <div class="panel">
+        <h1>SERPENT.IO</h1>
+        <div class="subtitle">&mdash; An Infinite Arena &mdash;</div>
 
-    <div class="slider-wrap">
-      <label>DIFFICULTY <span id="diffValue" class="slider-value">3 - SPICY</span></label>
-      <input type="range" id="difficulty" min="1" max="5" step="1" value="3">
+        <div class="section-label">Select Difficulty</div>
+        <div class="difficulty" id="diffSelector">
+            <button class="diff-btn" data-diff="1">1</button>
+            <button class="diff-btn" data-diff="2">2</button>
+            <button class="diff-btn selected" data-diff="3">3</button>
+            <button class="diff-btn" data-diff="4">4</button>
+            <button class="diff-btn" data-diff="5">5</button>
+        </div>
+        <div class="diff-desc" id="diffDesc">Balanced &mdash; a fair challenge</div>
+
+        <button class="start-btn" id="startBtn">ENTER THE ARENA</button>
+
+        <div class="instructions">
+            Move: <kbd>Mouse</kbd> or <kbd>Arrow Keys</kbd> / <kbd>WASD</kbd><br>
+            Boost: <kbd>Space</kbd> or <kbd>Left Click</kbd><br>
+            <strong>Victory:</strong> eat 200 orbs or eliminate all bots<br>
+            <strong>Large glowing orbs</strong> instantly refresh your boost
+        </div>
     </div>
-
-    <button class="btn" id="startBtn">&#x25B6; START</button>
-
-    <div class="instructions">
-      <div>[ <span>MOUSE</span> ] STEER YOUR SNAKE</div>
-      <div>[ <span>LEFT CLICK</span> ] BOOST (COSTS LENGTH)</div>
-      <div>[ <span>GOAL</span> ] ELIMINATE ALL 5 BOTS</div>
-    </div>
-  </div>
 </div>
 
-<!-- Game Over Screen -->
-<div id="overScreen" class="overlay hidden">
-  <div class="stars" id="stars2"></div>
-  <div class="card">
-    <h2 class="title">GAME  OVER</h2>
-    <div class="subtitle">A BOT GOT YOU. TRY AGAIN.</div>
-    <div class="stat-row">
-      <div class="stat"><span class="n" id="overLen">0</span><span class="l">LENGTH</span></div>
-      <div class="stat"><span class="n" id="overKills">0</span><span class="l">KILLS</span></div>
-      <div class="stat"><span class="n" id="overTime">0s</span><span class="l">TIME</span></div>
+<!-- End Screen -->
+<div class="overlay hidden" id="endScreen">
+    <div class="panel">
+        <h1 id="endTitle">VICTORY</h1>
+        <div class="subtitle" id="endMsg">The arena is yours</div>
+        <div id="endStats" style="color:#9cf; font-size:13px; letter-spacing:2px; margin: 20px 0;"></div>
+        <button class="start-btn" id="restartBtn">PLAY AGAIN</button>
     </div>
-    <button class="btn pink" id="retryBtn">RETRY</button>
-  </div>
-</div>
-
-<!-- Victory Screen -->
-<div id="winScreen" class="overlay hidden">
-  <div class="confetti" id="confetti"></div>
-  <div class="card">
-    <h2 class="title" style="color:var(--accent3)">VICTORY!</h2>
-    <div class="subtitle">YOU ATE THEM ALL. YOU ARE THE APEX SNAKE.</div>
-    <div class="stat-row">
-      <div class="stat"><span class="n" id="winLen">0</span><span class="l">LENGTH</span></div>
-      <div class="stat"><span class="n" id="winKills">5</span><span class="l">KILLS</span></div>
-      <div class="stat"><span class="n" id="winTime">0s</span><span class="l">TIME</span></div>
-    </div>
-    <button class="btn" id="winBtn">PLAY AGAIN</button>
-  </div>
 </div>
 
 <script>
-// ============================================================
-//   SLITHER BOTS — Pixel-art edition
-//   Performance rewrite: DPR-capped canvas, pixel rendering,
-//   reduced food, spatial culling, single-pass snake drawing.
-// ============================================================
+    'use strict';
 
-"use strict";
+    /* =========================================================
+       SERPENT.IO — A modern slither-inspired arena
+       ========================================================= */
 
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d", { alpha: false });
-// Crisp pixels — no smoothing
-ctx.imageSmoothingEnabled = false;
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const mini = document.getElementById('minimap');
+    const mctx = mini.getContext('2d');
 
-// ---- dom refs ----
-const hud = document.getElementById("hud");
-const startScreen = document.getElementById("startScreen");
-const overScreen  = document.getElementById("overScreen");
-const winScreen   = document.getElementById("winScreen");
-const diffSlider  = document.getElementById("difficulty");
-const diffValueEl = document.getElementById("diffValue");
-const startBtn    = document.getElementById("startBtn");
-const retryBtn    = document.getElementById("retryBtn");
-const winBtn      = document.getElementById("winBtn");
-const hudLen      = document.getElementById("hudLen");
-const hudKills    = document.getElementById("hudKills");
-const lbRows      = document.getElementById("lbRows");
-
-const overLen = document.getElementById("overLen");
-const overKills = document.getElementById("overKills");
-const overTime = document.getElementById("overTime");
-const winLen = document.getElementById("winLen");
-const winKills = document.getElementById("winKills");
-const winTime = document.getElementById("winTime");
-
-// ---- globals ----
-let W = 0, H = 0;
-let game = null;
-let mouse = { x: 0, y: 0, down: false };
-
-// Decorative star field
-function spawnStars(containerId){
-  const c = document.getElementById(containerId);
-  if (!c) return;
-  c.innerHTML = "";
-  for (let i = 0; i < 70; i++){
-    const el = document.createElement("i");
-    el.style.left = Math.random() * 100 + "%";
-    el.style.top  = Math.random() * 100 + "%";
-    el.style.animationDelay = (Math.random() * 3) + "s";
-    c.appendChild(el);
-  }
-}
-spawnStars("stars");
-spawnStars("stars2");
-
-function spawnConfetti(){
-  const c = document.getElementById("confetti");
-  c.innerHTML = "";
-  const colors = ["#ffd447","#ff3c85","#3cf0b0","#7bb7ff","#ff9c2a","#ffffff"];
-  for (let i = 0; i < 60; i++){
-    const el = document.createElement("i");
-    el.style.left = Math.random()*100 + "%";
-    el.style.background = colors[Math.floor(Math.random()*colors.length)];
-    el.style.animationDuration = (3 + Math.random()*3) + "s";
-    el.style.animationDelay = (Math.random()*2) + "s";
-    c.appendChild(el);
-  }
-}
-
-// ---- canvas sizing ----
-// IMPORTANT: DPR is capped at 1 here. Rendering a retina canvas means 4x
-// the pixels per frame, which was the main reason the game ran at ~10 FPS
-// on high-DPI displays. A 1:1 canvas is also the correct choice for a
-// pixel-art look — the "pixelated" CSS upscale does the rest.
-function resize(){
-  W = window.innerWidth;
-  H = window.innerHeight;
-  canvas.width  = W;
-  canvas.height = H;
-  canvas.style.width  = W + "px";
-  canvas.style.height = H + "px";
-  ctx.imageSmoothingEnabled = false;
-}
-window.addEventListener("resize", resize);
-resize();
-
-// ---- input ----
-window.addEventListener("mousemove", e => { mouse.x = e.clientX; mouse.y = e.clientY; });
-window.addEventListener("mousedown", e => { if (e.button === 0) mouse.down = true; });
-window.addEventListener("mouseup",   e => { if (e.button === 0) mouse.down = false; });
-window.addEventListener("touchmove",  e => { if (e.touches[0]) { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; } }, { passive:true });
-window.addEventListener("touchstart", e => { if (e.touches[0]) { mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; mouse.down = true; } }, { passive:true });
-window.addEventListener("touchend",   () => { mouse.down = false; }, { passive:true });
-
-// ---- difficulty labels ----
-const DIFF_LABELS = {
-  1: "1 - CHILL",
-  2: "2 - EASY",
-  3: "3 - SPICY",
-  4: "4 - FIERY",
-  5: "5 - NIGHTMARE",
-};
-function updateDiffLabel(){
-  diffValueEl.textContent = DIFF_LABELS[diffSlider.value];
-}
-diffSlider.addEventListener("input", updateDiffLabel);
-updateDiffLabel();
-
-// ============================================================
-//  Game constants
-// ============================================================
-const SEGMENT_SPACING = 7;
-const BASE_RADIUS = 10;
-const BASE_SPEED = 2.8;
-const BOOST_SPEED = 5.0;
-const TURN_RATE = 0.11;
-const BOOST_COST_FRAMES = 6;
-
-// Drastically reduced food count. 150 was the previous default — the user
-// asked for "a lot less" food. A sparse arena makes eating bots more
-// strategic and is far cheaper to render.
-const VIEW_RADIUS_FOOD = 1400;   // active radius around player
-const FOOD_TARGET      = 110;    // pellets kept alive at any time
-const FOOD_RADIUS      = 4;
-
-// Soul-Knight-ish vivid pixel palette. Colors pair a bright face with a
-// dark outline/shadow; every sprite is drawn from these.
-const PLAYER_PAL = {
-  body:  "#3ff0c8",
-  dark:  "#0a6b5a",
-  spine: "#b4ffe8",
-  name:  "YOU",
-};
-const BOT_PALETTE = [
-  { body:"#ff3c5e", dark:"#8a0a20", spine:"#ffb0bc", name:"PEPPER"  },
-  { body:"#8bff5a", dark:"#1c6e1a", spine:"#d4ffbc", name:"SPROUT"  },
-  { body:"#ffc842", dark:"#8a5a05", spine:"#fff0b0", name:"CHEDDAR" },
-  { body:"#b864ff", dark:"#4a107a", spine:"#e0baff", name:"VIOLET"  },
-  { body:"#ff7e2a", dark:"#8a3000", spine:"#ffd0a0", name:"EMBER"   },
-];
-
-// Food "gems" — simple pixel palette, no emoji
-const FOOD_COLORS = [
-  { fill:"#ff3c5e", rim:"#7a0a1a" },
-  { fill:"#ffd447", rim:"#8a5a05" },
-  { fill:"#3cf0b0", rim:"#0a5a3e" },
-  { fill:"#7bb7ff", rim:"#0a3a7a" },
-  { fill:"#ff7e2a", rim:"#8a3000" },
-  { fill:"#d76bff", rim:"#4a107a" },
-];
-
-// difficulty → bot tuning
-function difficultyConfig(level){
-  return {
-    botSpeed:       BASE_SPEED * (0.78 + level * 0.08),
-    botBoostSpeed:  BOOST_SPEED * (0.85 + level * 0.06),
-    botTurnRate:    TURN_RATE   * (0.7  + level * 0.12),
-    botViewRadius:  220 + level * 60,
-    botDangerRadius:110 + level * 10,
-    botStartLen:    20 + level * 6,
-    botAggression:  0.1 + level * 0.18,
-    botReactionMs:  260 - level * 36,
-  };
-}
-
-// ============================================================
-//  Helpers
-// ============================================================
-const TAU = Math.PI * 2;
-function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
-function dist2(ax, ay, bx, by){ const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; }
-function angleDiff(a, b){
-  let d = (a - b + Math.PI) % TAU;
-  if (d < 0) d += TAU;
-  return d - Math.PI;
-}
-function rand(a, b){ return a + Math.random() * (b - a); }
-
-// ============================================================
-//  Pre-rendered food sprites (huge performance win)
-// ============================================================
-// Drawing 100+ food items per frame by calling arc() and fill() was the
-// second biggest hit. Instead we bake each food color into a small
-// off-screen canvas once at startup and then blit it with drawImage(),
-// which is cheap. Two variants per color for a simple pulse animation.
-const FOOD_SPRITES = [];
-function buildFoodSprites(){
-  FOOD_SPRITES.length = 0;
-  for (const c of FOOD_COLORS){
-    const frames = [];
-    for (let f = 0; f < 2; f++){
-      const size = 20;
-      const off = document.createElement("canvas");
-      off.width = off.height = size;
-      const o = off.getContext("2d");
-      o.imageSmoothingEnabled = false;
-      // soft glow
-      const g = o.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-      g.addColorStop(0, c.fill + "aa");
-      g.addColorStop(1, c.fill + "00");
-      o.fillStyle = g;
-      o.fillRect(0, 0, size, size);
-      // chunky pixel gem — outer rim + inner body + highlight
-      const cx = size/2, cy = size/2;
-      const r = 4 + f; // 4 or 5 — the "pulse"
-      o.fillStyle = c.rim;
-      o.fillRect(cx - r, cy - r - 1, r*2, r*2 + 2);
-      o.fillRect(cx - r - 1, cy - r, r*2 + 2, r*2);
-      o.fillStyle = c.fill;
-      o.fillRect(cx - r + 1, cy - r, r*2 - 2, r*2);
-      o.fillRect(cx - r, cy - r + 1, r*2, r*2 - 2);
-      // highlight pixel
-      o.fillStyle = "#ffffff";
-      o.fillRect(cx - r + 1, cy - r + 1, 2, 2);
-      frames.push(off);
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        mini.width = 180;
+        mini.height = 180;
     }
-    FOOD_SPRITES.push(frames);
-  }
-}
-buildFoodSprites();
+    window.addEventListener('resize', resize);
+    resize();
 
-// ============================================================
-//  Food
-// ============================================================
-class Food {
-  constructor(x, y){
-    this.x = x; this.y = y;
-    this.pick = (Math.random() * FOOD_SPRITES.length) | 0;
-    this.pulse = Math.random() * TAU;
-    this.value = 1;
-  }
-}
+    /* ---------- Input ---------- */
+    const keys = {};
+    window.addEventListener('keydown', e => {
+        keys[e.key.toLowerCase()] = true;
+        if (e.code === 'Space') { e.preventDefault(); if (player) player.tryBoost(); }
+    });
+    window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
-// ============================================================
-//  Snake
-// ============================================================
-class Snake {
-  constructor(x, y, colors, name, isBot){
-    this.name = name;
-    this.colors = colors;
-    this.isBot = !!isBot;
-    this.alive = true;
-    this.angle = Math.random() * TAU;
-    this.targetAngle = this.angle;
-    this.speed = BASE_SPEED;
-    this.boosting = false;
-    this.boostCounter = 0;
-    this.length_units = 30;
-    this.score = 0;
-    this.segments = [];
-    for (let i = 0; i < this.length_units; i++){
-      this.segments.push({
-        x: x - i * SEGMENT_SPACING * Math.cos(this.angle),
-        y: y - i * SEGMENT_SPACING * Math.sin(this.angle),
-      });
-    }
-  }
-  get head(){ return this.segments[0]; }
-  get radius(){ return BASE_RADIUS + Math.min(14, this.length_units * 0.05); }
+    const mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2, down: false };
+    window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+    window.addEventListener('mousedown', e => {
+        if (e.button === 0 && player && running) { mouse.down = true; player.tryBoost(); }
+    });
+    window.addEventListener('mouseup', e => { mouse.down = false; });
+    window.addEventListener('contextmenu', e => e.preventDefault());
 
-  update(dt, foods, snakes, difficulty){
-    if (!this.alive) return;
+    /* ---------- Game State ---------- */
+    let difficulty = 3;
+    let player = null;
+    let bots = [];
+    let foods = [];
+    let particles = [];
+    let running = false;
+    let startTime = 0;
+    const camera = { x: 0, y: 0 };
 
-    // smooth turn
-    const turnRate = this.isBot ? difficulty.botTurnRate : TURN_RATE;
-    let diff = angleDiff(this.targetAngle, this.angle);
-    if (diff > turnRate) diff = turnRate;
-    else if (diff < -turnRate) diff = -turnRate;
-    this.angle += diff;
+    const VICTORY_ORBS = 200;
+    const FOOD_TARGET = 900;          // density around player
+    const FOOD_RADIUS = 2800;         // spawn radius
+    const BOOST_COOLDOWN = 30000;     // 30 seconds
+    const BOOST_DURATION = 2000;      // 2 seconds active boost
+    const BOOST_ORB_CHANCE = 0.045;   // ~4.5% of orbs are boost-refill
 
-    // speed / boost
-    const normal = this.isBot ? difficulty.botSpeed : BASE_SPEED;
-    const fast   = this.isBot ? difficulty.botBoostSpeed : BOOST_SPEED;
-    if (this.boosting && this.length_units > 35){
-      this.speed = fast;
-      this.boostCounter++;
-      if (this.boostCounter >= BOOST_COST_FRAMES){
-        this.boostCounter = 0;
-        this.shrink(1);
-        const t = this.segments[this.segments.length - 1];
-        foods.push(new Food(t.x + rand(-8,8), t.y + rand(-8,8)));
-      }
-    } else {
-      this.speed = normal;
-      this.boosting = false;
-    }
+    const BOT_COLORS = ['#ff4d8d', '#a855f7', '#22d3ee', '#facc15', '#f97316'];
 
-    // move head
-    const head = this.segments[0];
-    head.x += Math.cos(this.angle) * this.speed;
-    head.y += Math.sin(this.angle) * this.speed;
-
-    // segment following (tight loop, no allocations)
-    const segs = this.segments;
-    for (let i = 1; i < segs.length; i++){
-      const prev = segs[i - 1];
-      const seg  = segs[i];
-      const dx = seg.x - prev.x;
-      const dy = seg.y - prev.y;
-      const d = Math.sqrt(dx*dx + dy*dy);
-      if (d === 0) continue;
-      const factor = (d - SEGMENT_SPACING) / d;
-      seg.x -= dx * factor;
-      seg.y -= dy * factor;
-    }
-
-    // eat food — squared-distance test, single pass
-    const hx = head.x, hy = head.y;
-    const rr = (this.radius + FOOD_RADIUS + 4);
-    const rr2 = rr * rr;
-    for (let i = foods.length - 1; i >= 0; i--){
-      const f = foods[i];
-      const fdx = hx - f.x, fdy = hy - f.y;
-      if (fdx*fdx + fdy*fdy < rr2){
-        this.grow(f.value);
-        this.score += f.value;
-        // swap-remove
-        foods[i] = foods[foods.length - 1];
-        foods.pop();
-      }
-    }
-
-    // snake-to-snake collision with spatial culling
-    for (let si = 0; si < snakes.length; si++){
-      const other = snakes[si];
-      if (other === this || !other.alive) continue;
-      const oh = other.segments[0];
-      // broad phase: bounding sphere including body length (rough)
-      const maxReach = other.length_units * SEGMENT_SPACING * 0.5 + other.radius + this.radius + 8;
-      const bdx = hx - oh.x, bdy = hy - oh.y;
-      if (bdx*bdx + bdy*bdy > maxReach * maxReach) continue;
-
-      const rad = (this.radius + other.radius);
-      const rad2 = rad * rad;
-      // narrow phase: sample segments with a stride — plenty accurate at
-      // this spacing and ~3x faster than testing every segment.
-      const ostep = 3;
-      const oseg = other.segments;
-      for (let i = 1; i < oseg.length; i += ostep){
-        const s = oseg[i];
-        const sdx = hx - s.x, sdy = hy - s.y;
-        if (sdx*sdx + sdy*sdy < rad2){
-          this.die(foods);
-          return;
+    /* ---------- Food ---------- */
+    class Food {
+        constructor(x, y, forceBoost = false) {
+            this.x = x; this.y = y;
+            this.isBoost = forceBoost || (Math.random() < BOOST_ORB_CHANCE);
+            this.radius = this.isBoost ? 11 : (4 + Math.random() * 2);
+            const palette = ['#66ffff','#6688ff','#cc66ff','#ff66cc','#66ffcc','#ffff66','#ff9966','#99eeff'];
+            this.color = this.isBoost ? '#ffffff' : palette[(Math.random() * palette.length) | 0];
+            this.pulse = Math.random() * Math.PI * 2;
         }
-      }
-      // head-to-head
-      const ohdx = hx - oh.x, ohdy = hy - oh.y;
-      if (ohdx*ohdx + ohdy*ohdy < rad2){
-        if (this.length_units <= other.length_units){
-          this.die(foods);
-          return;
+        draw(now) {
+            const sx = this.x - camera.x + canvas.width * 0.5;
+            const sy = this.y - camera.y + canvas.height * 0.5;
+            if (sx < -30 || sx > canvas.width + 30 || sy < -30 || sy > canvas.height + 30) return;
+
+            const pulse = 1 + Math.sin(now * 0.003 + this.pulse) * (this.isBoost ? 0.22 : 0.14);
+            const r = this.radius * pulse;
+
+            // outer glow
+            const gRadius = r * (this.isBoost ? 5 : 3);
+            const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, gRadius);
+            grad.addColorStop(0, this.color + 'ff');
+            grad.addColorStop(0.25, this.color + '99');
+            grad.addColorStop(1, this.color + '00');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(sx, sy, gRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // core
+            ctx.fillStyle = this.isBoost ? '#ffffff' : this.color;
+            ctx.beginPath();
+            ctx.arc(sx, sy, r, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (this.isBoost) {
+                // pulsing ring
+                ctx.strokeStyle = '#6ff';
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 0.7 + Math.sin(now * 0.006) * 0.3;
+                ctx.beginPath();
+                ctx.arc(sx, sy, r * 1.8, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
         }
-      }
-    }
-  }
-
-  grow(n){
-    this.length_units += n;
-    const t = this.segments[this.segments.length - 1];
-    for (let i = 0; i < n; i++){
-      this.segments.push({ x: t.x, y: t.y });
-    }
-  }
-  shrink(n){
-    for (let i = 0; i < n; i++){
-      if (this.segments.length > 10) this.segments.pop();
-    }
-    this.length_units = Math.max(10, this.length_units - n);
-  }
-  die(foods){
-    this.alive = false;
-    // drop food pellets every 3rd segment — sparse but noticeable
-    for (let i = 0; i < this.segments.length; i += 3){
-      const s = this.segments[i];
-      const f = new Food(s.x + rand(-6,6), s.y + rand(-6,6));
-      f.value = 2;
-      foods.push(f);
-    }
-  }
-
-  // ----- pixel draw -----
-  // Single-pass: one outline pass + one body pass, drawing chunky pixel
-  // blocks at every segment. Off-screen segments are skipped entirely.
-  draw(ctx, cam, viewW, viewH){
-    if (!this.alive) return;
-    const r = Math.round(this.radius);
-    const segs = this.segments;
-
-    // Body: draw darker square under a brighter square at each segment.
-    // Using rects (not arcs) keeps the pixel-art look and is the fastest
-    // shape we can draw in canvas.
-    ctx.fillStyle = this.colors.dark;
-    const outR = r + 1;
-    for (let i = segs.length - 1; i >= 1; i -= 1){
-      const s = segs[i];
-      const x = s.x - cam.x;
-      const y = s.y - cam.y;
-      if (x < -outR || y < -outR || x > viewW + outR || y > viewH + outR) continue;
-      const ix = (x - outR) | 0;
-      const iy = (y - outR) | 0;
-      ctx.fillRect(ix, iy, outR*2, outR*2);
-    }
-    ctx.fillStyle = this.colors.body;
-    const inR = r - 1;
-    for (let i = segs.length - 1; i >= 1; i -= 1){
-      const s = segs[i];
-      const x = s.x - cam.x;
-      const y = s.y - cam.y;
-      if (x < -outR || y < -outR || x > viewW + outR || y > viewH + outR) continue;
-      const ix = (x - inR) | 0;
-      const iy = (y - inR) | 0;
-      ctx.fillRect(ix, iy, inR*2, inR*2);
-    }
-    // Spine stripe — every 4th segment a brighter pixel on top
-    ctx.fillStyle = this.colors.spine;
-    for (let i = segs.length - 1; i >= 1; i -= 4){
-      const s = segs[i];
-      const x = s.x - cam.x;
-      const y = s.y - cam.y;
-      if (x < -outR || y < -outR || x > viewW + outR || y > viewH + outR) continue;
-      ctx.fillRect((x - 2) | 0, (y - 2) | 0, 4, 4);
     }
 
-    // Head block
-    const h = segs[0];
-    const hx = h.x - cam.x;
-    const hy = h.y - cam.y;
-    if (hx > -outR && hx < viewW + outR && hy > -outR && hy < viewH + outR){
-      ctx.fillStyle = this.colors.dark;
-      ctx.fillRect(((hx - r - 2) | 0), ((hy - r - 2) | 0), (r + 2) * 2, (r + 2) * 2);
-      ctx.fillStyle = this.colors.body;
-      ctx.fillRect(((hx - r) | 0), ((hy - r) | 0), r * 2, r * 2);
-
-      // Eyes — pure pixel rectangles, no circles
-      const cs = Math.cos(this.angle), sn = Math.sin(this.angle);
-      const perpX = -sn, perpY = cs;
-      const eyeF = r * 0.35;
-      const eyeS = r * 0.55;
-      for (const side of [-1, 1]){
-        const ex = hx + cs * eyeF + perpX * eyeS * side;
-        const ey = hy + sn * eyeF + perpY * eyeS * side;
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(((ex - 3) | 0), ((ey - 3) | 0), 6, 6);
-        ctx.fillStyle = "#0a0518";
-        ctx.fillRect(((ex - 1 + cs * 1.5) | 0), ((ey - 1 + sn * 1.5) | 0), 3, 3);
-      }
-
-      // Name tag — pixel font, 10px, only for nearby snakes
-      ctx.font = "bold 10px 'Courier New', monospace";
-      ctx.textAlign = "center";
-      ctx.fillStyle = "#000";
-      ctx.fillText(this.name, hx | 0, (hy - r - 6) | 0);
-      ctx.fillStyle = this.colors.body;
-      ctx.fillText(this.name, (hx - 1) | 0, (hy - r - 7) | 0);
-    }
-  }
-}
-
-// ============================================================
-//  BotSnake
-// ============================================================
-class BotSnake extends Snake {
-  constructor(x, y, colors, name){
-    super(x, y, colors, name, true);
-    this.state = "HUNT";
-    this.wanderAngle = this.angle;
-    this.wanderCooldown = 0;
-    this.thinkCooldown = Math.random() * 300;
-  }
-
-  think(foods, snakes, player, difficulty){
-    if (!this.alive) return;
-
-    // Throttle thinking much more aggressively. Bots don't need to
-    // re-plan every frame — once every reaction-time window is fine and
-    // keeps the CPU cool.
-    this.thinkCooldown -= 16;
-    if (this.thinkCooldown > 0) return;
-    this.thinkCooldown = difficulty.botReactionMs + Math.random() * 40;
-
-    const head = this.segments[0];
-    const hx = head.x, hy = head.y;
-
-    // 1. detect threats — body segments within danger radius, stride 3
-    let tdx = 0, tdy = 0, threat = false;
-    const dr2 = difficulty.botDangerRadius * difficulty.botDangerRadius;
-    for (let si = 0; si < snakes.length; si++){
-      const other = snakes[si];
-      if (other === this || !other.alive) continue;
-      // broad phase skip
-      const oh = other.segments[0];
-      const bdx = hx - oh.x, bdy = hy - oh.y;
-      const maxReach = other.length_units * SEGMENT_SPACING * 0.5 + difficulty.botDangerRadius;
-      if (bdx*bdx + bdy*bdy > maxReach * maxReach) continue;
-      const oseg = other.segments;
-      for (let i = 1; i < oseg.length; i += 3){
-        const s = oseg[i];
-        const dx = hx - s.x, dy = hy - s.y;
-        const d2 = dx*dx + dy*dy;
-        if (d2 < dr2){
-          threat = true;
-          const w = 1 / (Math.sqrt(d2) + 1);
-          tdx += dx * w; tdy += dy * w;
+    /* ---------- Particles (death/eat feedback) ---------- */
+    class Particle {
+        constructor(x, y, color, vx = null, vy = null) {
+            this.x = x; this.y = y;
+            const a = Math.random() * Math.PI * 2;
+            const s = 1 + Math.random() * 3;
+            this.vx = vx !== null ? vx : Math.cos(a) * s;
+            this.vy = vy !== null ? vy : Math.sin(a) * s;
+            this.life = 1;
+            this.color = color;
+            this.radius = 2 + Math.random() * 3;
         }
-      }
+        update() {
+            this.x += this.vx; this.y += this.vy;
+            this.vx *= 0.93; this.vy *= 0.93;
+            this.life -= 0.02;
+        }
+        draw() {
+            const sx = this.x - camera.x + canvas.width * 0.5;
+            const sy = this.y - camera.y + canvas.height * 0.5;
+            ctx.globalAlpha = Math.max(0, this.life);
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(sx, sy, this.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
     }
 
-    if (threat){
-      this.state = "FLEE";
-      this.targetAngle = Math.atan2(tdy, tdx);
-      this.boosting = (Math.random() < 0.03 && this.length_units > 60);
-      return;
+    /* ---------- Snake ---------- */
+    class Snake {
+        constructor(x, y, isAI, color, name = 'Player') {
+            this.isAI = isAI;
+            this.color = color;
+            this.name = name;
+            this.head = { x, y };
+            this.angle = Math.random() * Math.PI * 2;
+            this.targetAngle = this.angle;
+            this.baseSpeed = 2.8;
+            this.boostSpeedMult = 2.0;
+            this.turnSpeed = 0.095;
+            this.radius = 10;
+            this.segSpacing = 4;
+            this.segmentCount = 22;
+            this.score = 0;
+            this.alive = true;
+            this.boosting = false;
+            this.boostEndTime = 0;
+            this.boostCooldownEnd = 0;
+            // AI tuning
+            this.aggression = 0.5;
+            this.reactionNoise = 0.2;
+            this.kills = 0;
+
+            // pre-fill trail (positions of the head over time)
+            this.trail = [];
+            const needed = this.segmentCount * this.segSpacing + 20;
+            for (let i = 0; i < needed; i++) {
+                this.trail.push({
+                    x: x - i * Math.cos(this.angle) * 0.7,
+                    y: y - i * Math.sin(this.angle) * 0.7,
+                });
+            }
+        }
+
+        get currentSpeed() {
+            return this.boosting ? this.baseSpeed * this.boostSpeedMult : this.baseSpeed;
+        }
+
+        canBoost(now) {
+            return this.alive && !this.boosting && now >= this.boostCooldownEnd;
+        }
+
+        tryBoost(now = performance.now()) {
+            if (!this.canBoost(now)) return false;
+            this.boosting = true;
+            this.boostEndTime = now + BOOST_DURATION;
+            this.boostCooldownEnd = now + BOOST_COOLDOWN;
+            return true;
+        }
+
+        refreshBoost(now = performance.now()) {
+            this.boostCooldownEnd = now;
+        }
+
+        update(now) {
+            if (!this.alive) return;
+
+            if (this.boosting && now >= this.boostEndTime) this.boosting = false;
+
+            // Smoothly turn toward targetAngle
+            let da = this.targetAngle - this.angle;
+            while (da > Math.PI) da -= Math.PI * 2;
+            while (da < -Math.PI) da += Math.PI * 2;
+            const turn = this.turnSpeed;
+            this.angle += Math.max(-turn, Math.min(turn, da));
+
+            const speed = this.currentSpeed;
+            this.head.x += Math.cos(this.angle) * speed;
+            this.head.y += Math.sin(this.angle) * speed;
+
+            this.trail.unshift({ x: this.head.x, y: this.head.y });
+            const needed = this.segmentCount * this.segSpacing + 10;
+            while (this.trail.length > needed) this.trail.pop();
+        }
+
+        grow(n = 1) {
+            this.segmentCount += n;
+            const tail = this.trail[this.trail.length - 1];
+            for (let i = 0; i < n * this.segSpacing; i++) {
+                this.trail.push({ x: tail.x, y: tail.y });
+            }
+        }
+
+        // Body segments used for rendering & collisions (skip first = head)
+        getBodySegments() {
+            const out = [];
+            for (let i = 0; i < this.segmentCount; i++) {
+                const s = this.trail[i * this.segSpacing];
+                if (s) out.push(s);
+            }
+            return out;
+        }
+
+        draw(now) {
+            if (!this.alive) return;
+            const body = this.getBodySegments();
+            const w2 = canvas.width * 0.5, h2 = canvas.height * 0.5;
+
+            // Draw outer glow pass
+            ctx.save();
+            for (let i = body.length - 1; i >= 0; i--) {
+                const s = body[i];
+                const x = s.x - camera.x + w2;
+                const y = s.y - camera.y + h2;
+                if (x < -80 || x > canvas.width + 80 || y < -80 || y > canvas.height + 80) continue;
+                const g = ctx.createRadialGradient(x, y, 0, x, y, this.radius * 2.4);
+                g.addColorStop(0, this.color + 'aa');
+                g.addColorStop(0.4, this.color + '55');
+                g.addColorStop(1, this.color + '00');
+                ctx.fillStyle = g;
+                ctx.beginPath();
+                ctx.arc(x, y, this.radius * 2.4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // Solid body
+            for (let i = body.length - 1; i >= 0; i--) {
+                const s = body[i];
+                const x = s.x - camera.x + w2;
+                const y = s.y - camera.y + h2;
+                if (x < -60 || x > canvas.width + 60 || y < -60 || y > canvas.height + 60) continue;
+
+                // subtle stripe pattern
+                const bright = (i + Math.floor(now * 0.006)) % 6 < 2 ? 1.0 : 0.85;
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = bright;
+                ctx.beginPath();
+                ctx.arc(x, y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+
+                // inner highlight
+                ctx.fillStyle = 'rgba(255,255,255,0.15)';
+                ctx.beginPath();
+                ctx.arc(x - this.radius * 0.25, y - this.radius * 0.25, this.radius * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Head + eyes
+            const headSeg = body[0];
+            if (headSeg) {
+                const hx = headSeg.x - camera.x + w2;
+                const hy = headSeg.y - camera.y + h2;
+
+                // boost aura
+                if (this.boosting) {
+                    const ag = ctx.createRadialGradient(hx, hy, 0, hx, hy, this.radius * 4);
+                    ag.addColorStop(0, '#ffffff99');
+                    ag.addColorStop(0.4, this.color + '66');
+                    ag.addColorStop(1, '#00000000');
+                    ctx.fillStyle = ag;
+                    ctx.beginPath();
+                    ctx.arc(hx, hy, this.radius * 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                const eyeDist = this.radius * 0.55;
+                const eyeR = this.radius * 0.32;
+                const ex1 = hx + Math.cos(this.angle + 0.65) * eyeDist;
+                const ey1 = hy + Math.sin(this.angle + 0.65) * eyeDist;
+                const ex2 = hx + Math.cos(this.angle - 0.65) * eyeDist;
+                const ey2 = hy + Math.sin(this.angle - 0.65) * eyeDist;
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath(); ctx.arc(ex1, ey1, eyeR, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(ex2, ey2, eyeR, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#000';
+                const pupilOffset = eyeR * 0.5;
+                ctx.beginPath();
+                ctx.arc(ex1 + Math.cos(this.angle) * pupilOffset, ey1 + Math.sin(this.angle) * pupilOffset, eyeR * 0.55, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(ex2 + Math.cos(this.angle) * pupilOffset, ey2 + Math.sin(this.angle) * pupilOffset, eyeR * 0.55, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
     }
 
-    // 2. opportunistic cutoff
-    if (player.alive &&
-        this.length_units > player.length_units + 15 &&
-        Math.random() < difficulty.botAggression){
-      const ph = player.segments[0];
-      const vr2 = (difficulty.botViewRadius * 1.8);
-      if (dist2(hx, hy, ph.x, ph.y) < vr2 * vr2){
-        const lead = 80;
-        const tx = ph.x + Math.cos(player.angle) * lead;
-        const ty = ph.y + Math.sin(player.angle) * lead;
-        this.targetAngle = Math.atan2(ty - hy, tx - hx);
-        this.state = "CUTOFF";
-        this.boosting = this.length_units > 90;
-        return;
-      }
+    /* ---------- Game Setup ---------- */
+    function configureBot(bot, diff) {
+        // Difficulty scaling (1..5)
+        const d = diff;
+        bot.baseSpeed = 2.5 + d * 0.18;          // 2.68 .. 3.4
+        bot.boostSpeedMult = 1.9 + d * 0.04;     // 1.94 .. 2.1
+        bot.turnSpeed = 0.045 + d * 0.012;       // 0.057 .. 0.105
+        bot.segmentCount = 18 + d * 3;           // 21 .. 33
+        bot.aggression = 0.15 + d * 0.17;        // 0.32 .. 1.0
+        bot.reactionNoise = 0.35 - d * 0.06;     // 0.29 .. 0.05
+        bot.radius = 10 + (d >= 4 ? 1 : 0);
+
+        // Re-init trail to match new segment count
+        bot.trail = [];
+        const needed = bot.segmentCount * bot.segSpacing + 20;
+        for (let i = 0; i < needed; i++) {
+            bot.trail.push({
+                x: bot.head.x - i * Math.cos(bot.angle) * 0.7,
+                y: bot.head.y - i * Math.sin(bot.angle) * 0.7,
+            });
+        }
     }
 
-    // 3. hunt nearest food in view
-    let best = difficulty.botViewRadius * difficulty.botViewRadius;
-    let bestFood = null;
-    for (let i = 0; i < foods.length; i++){
-      const f = foods[i];
-      const dx = hx - f.x, dy = hy - f.y;
-      const d = dx*dx + dy*dy;
-      if (d < best){ best = d; bestFood = f; }
-    }
-    if (bestFood){
-      this.state = "HUNT";
-      this.targetAngle = Math.atan2(bestFood.y - hy, bestFood.x - hx);
-      this.boosting = false;
-      return;
-    }
+    function initGame() {
+        foods.length = 0;
+        bots.length = 0;
+        particles.length = 0;
 
-    // 4. wander, pulling back toward player if we drift
-    this.state = "WANDER";
-    this.wanderCooldown -= 1;
-    if (this.wanderCooldown <= 0){
-      this.wanderAngle += rand(-0.6, 0.6);
-      this.wanderCooldown = 30 + Math.random() * 60;
-    }
-    const ph = player.segments[0];
-    const d2p = dist2(hx, hy, ph.x, ph.y);
-    if (d2p > VIEW_RADIUS_FOOD * VIEW_RADIUS_FOOD * 0.8){
-      this.targetAngle = Math.atan2(ph.y - hy, ph.x - hx);
-    } else {
-      this.targetAngle = this.wanderAngle;
-    }
-    this.boosting = false;
-  }
-}
+        player = new Snake(0, 0, false, '#66ffff', 'You');
+        player.baseSpeed = 3.0;
+        player.boostSpeedMult = 2.0;
+        player.turnSpeed = 0.11;
+        player.segmentCount = 22;
 
-// ============================================================
-//  Game
-// ============================================================
-class Game {
-  constructor(difficultyLevel){
-    this.level = difficultyLevel;
-    this.diff = difficultyConfig(difficultyLevel);
-    this.foods = [];
-    this.snakes = [];
-    this.kills = 0;
-    this.startTime = performance.now();
-    this.lastFrame = performance.now();
-    this.state = "PLAYING";
+        // Spawn 5 bots in a ring around the player
+        for (let i = 0; i < 5; i++) {
+            const a = (i / 5) * Math.PI * 2 + Math.random() * 0.4;
+            const d = 900 + Math.random() * 400;
+            const bot = new Snake(Math.cos(a) * d, Math.sin(a) * d, true, BOT_COLORS[i], 'Bot ' + (i + 1));
+            configureBot(bot, difficulty);
+            bots.push(bot);
+        }
 
-    this.player = new Snake(0, 0, PLAYER_PAL, "YOU", false);
-    this.snakes.push(this.player);
+        // Initial food spread
+        for (let i = 0; i < FOOD_TARGET; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const r = Math.sqrt(Math.random()) * FOOD_RADIUS;
+            foods.push(new Food(Math.cos(a) * r, Math.sin(a) * r));
+        }
 
-    for (let i = 0; i < BOT_PALETTE.length; i++){
-      const ang = (i / BOT_PALETTE.length) * TAU;
-      const r = 900 + Math.random() * 300;
-      const x = Math.cos(ang) * r;
-      const y = Math.sin(ang) * r;
-      const b = new BotSnake(x, y, BOT_PALETTE[i], BOT_PALETTE[i].name);
-      b.length_units = this.diff.botStartLen;
-      while (b.segments.length < b.length_units){
-        b.segments.push({ x: b.segments[b.segments.length-1].x, y: b.segments[b.segments.length-1].y });
-      }
-      this.snakes.push(b);
+        camera.x = 0;
+        camera.y = 0;
+        startTime = performance.now();
+        running = true;
     }
 
-    this.refillFood();
-  }
+    /* ---------- AI ---------- */
+    function updateAI(bot, now) {
+        if (!bot.alive) return;
 
-  // Keep a food ring around the player — gives the illusion of an
-  // infinite world without ever allocating more than FOOD_TARGET pellets.
-  refillFood(){
-    const ph = this.player.segments[0];
-    const farR2 = (VIEW_RADIUS_FOOD * 1.3) ** 2;
-    for (const f of this.foods){
-      const fdx = f.x - ph.x, fdy = f.y - ph.y;
-      if (fdx*fdx + fdy*fdy > farR2){
-        const ang = Math.random() * TAU;
-        const r = rand(VIEW_RADIUS_FOOD * 0.2, VIEW_RADIUS_FOOD);
-        f.x = ph.x + Math.cos(ang) * r;
-        f.y = ph.y + Math.sin(ang) * r;
-        f.pick = (Math.random() * FOOD_SPRITES.length) | 0;
-      }
-    }
-    while (this.foods.length < FOOD_TARGET){
-      const ang = Math.random() * TAU;
-      const r = rand(160, VIEW_RADIUS_FOOD);
-      this.foods.push(new Food(
-        ph.x + Math.cos(ang) * r,
-        ph.y + Math.sin(ang) * r,
-      ));
-    }
-  }
+        const hx = bot.head.x, hy = bot.head.y;
+        const allOthers = [player, ...bots].filter(s => s !== bot && s.alive);
 
-  clampBotsToPlayer(){
-    const ph = this.player.segments[0];
-    const maxR2 = (VIEW_RADIUS_FOOD * 2.5) ** 2;
-    for (const s of this.snakes){
-      if (s === this.player || !s.alive) continue;
-      const sh = s.segments[0];
-      const dx = sh.x - ph.x, dy = sh.y - ph.y;
-      if (dx*dx + dy*dy > maxR2){
-        const ang = Math.random() * TAU;
-        const r = VIEW_RADIUS_FOOD * 1.6;
-        const newX = ph.x + Math.cos(ang) * r;
-        const newY = ph.y + Math.sin(ang) * r;
-        const odx = newX - sh.x, ody = newY - sh.y;
-        for (const seg of s.segments){ seg.x += odx; seg.y += ody; }
-      }
-    }
-  }
+        // 1) Nearest food (weight boost orbs higher)
+        let nearestFood = null, nearestFoodScore = Infinity;
+        for (const f of foods) {
+            const dx = f.x - hx, dy = f.y - hy;
+            const d2 = dx * dx + dy * dy;
+            if (d2 > 700 * 700) continue;
+            const weighted = d2 * (f.isBoost ? 0.35 : 1);
+            if (weighted < nearestFoodScore) {
+                nearestFoodScore = weighted;
+                nearestFood = f;
+            }
+        }
 
-  tick(now){
-    const dt = Math.min(0.05, (now - this.lastFrame) / 1000);
-    this.lastFrame = now;
+        // 2) Distance/direction to player (prime target)
+        let targetX, targetY;
+        const pdx = player.head.x - hx;
+        const pdy = player.head.y - hy;
+        const pdist = Math.hypot(pdx, pdy);
+        const attackRange = 220 + bot.aggression * 600; // range increases with aggression
 
-    if (this.state !== "PLAYING") return;
+        let intent = 'feed';
+        if (player.alive && pdist < attackRange && Math.random() < 0.5 + bot.aggression * 0.5) {
+            intent = 'attack';
+        }
 
-    if (this.player.alive){
-      const cam = this.camera();
-      const worldMx = mouse.x + cam.x;
-      const worldMy = mouse.y + cam.y;
-      const h = this.player.segments[0];
-      this.player.targetAngle = Math.atan2(worldMy - h.y, worldMx - h.x);
-      this.player.boosting = mouse.down;
-    }
+        if (intent === 'attack') {
+            // Predict player's future position and aim to cut them off
+            const lead = Math.min(1.5, pdist / 160) * (0.4 + bot.aggression * 0.8);
+            const predX = player.head.x + Math.cos(player.angle) * player.currentSpeed * 20 * lead;
+            const predY = player.head.y + Math.sin(player.angle) * player.currentSpeed * 20 * lead;
 
-    for (const s of this.snakes){
-      if (s instanceof BotSnake){
-        s.think(this.foods, this.snakes, this.player, this.diff);
-      }
-    }
+            // Offset target sideways to the player's motion to intercept
+            const sideA = player.angle + Math.PI / 2;
+            const sideOffset = (Math.random() < 0.5 ? 1 : -1) * 60 * bot.aggression;
+            targetX = predX + Math.cos(sideA) * sideOffset;
+            targetY = predY + Math.sin(sideA) * sideOffset;
 
-    const aliveBefore = this.snakes.filter(s => s !== this.player && s.alive).length;
+            // Strategic boost: use when close, angle aligned, and off cooldown
+            if (bot.canBoost(now) && pdist < 300) {
+                const desired = Math.atan2(targetY - hy, targetX - hx);
+                let diff = Math.abs(((desired - bot.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+                // Higher difficulty → boost with looser alignment
+                const tol = 0.3 + bot.aggression * 0.35;
+                if (diff < tol) bot.tryBoost(now);
+            }
+        } else if (nearestFood) {
+            targetX = nearestFood.x;
+            targetY = nearestFood.y;
+        } else {
+            // wander
+            targetX = hx + Math.cos(bot.angle) * 120 + (Math.random() - 0.5) * 200;
+            targetY = hy + Math.sin(bot.angle) * 120 + (Math.random() - 0.5) * 200;
+        }
 
-    for (const s of this.snakes){
-      s.update(dt, this.foods, this.snakes, this.diff);
-    }
+        // 3) Obstacle / body avoidance: look ahead for other snakes' bodies
+        const lookAhead = 55 + bot.currentSpeed * 10;
+        const ax = hx + Math.cos(bot.angle) * lookAhead;
+        const ay = hy + Math.sin(bot.angle) * lookAhead;
 
-    const aliveAfter = this.snakes.filter(s => s !== this.player && s.alive).length;
-    const newlyDead = aliveBefore - aliveAfter;
-    if (newlyDead > 0) this.kills += newlyDead;
+        let avoid = null, avoidD2 = Infinity;
+        const avoidRadius = 75;
+        for (const o of allOthers) {
+            const body = o.getBodySegments();
+            for (let i = 1; i < body.length; i += 2) { // sample every other segment for perf
+                const s = body[i];
+                const dx = s.x - ax, dy = s.y - ay;
+                const d2 = dx * dx + dy * dy;
+                if (d2 < avoidRadius * avoidRadius && d2 < avoidD2) {
+                    avoidD2 = d2;
+                    avoid = s;
+                }
+            }
+        }
+        if (avoid) {
+            const away = Math.atan2(hy - avoid.y, hx - avoid.x);
+            targetX = hx + Math.cos(away) * 300;
+            targetY = hy + Math.sin(away) * 300;
+        }
 
-    this.refillFood();
-    this.clampBotsToPlayer();
-
-    if (!this.player.alive){
-      this.state = "OVER";
-      showGameOver(this);
-    } else if (this.kills >= 5 && aliveAfter === 0){
-      this.state = "WON";
-      showVictory(this);
-    }
-
-    // HUD updates are cheap but we still only do them once per frame
-    hudLen.textContent = this.player.length_units;
-    hudKills.textContent = this.kills;
-    this.updateLeaderboard();
-  }
-
-  updateLeaderboard(){
-    const snakes = this.snakes.slice().sort((a,b) => b.length_units - a.length_units);
-    let html = "";
-    let rank = 1;
-    for (const s of snakes){
-      const isYou = s === this.player;
-      const cls = (isYou ? "row you" : "row") + (s.alive ? "" : " dead");
-      html += `<div class="${cls}"><span><span class="sw" style="background:${s.colors.body}"></span>${rank}. ${s.name}</span><span>${s.length_units}</span></div>`;
-      rank++;
-    }
-    lbRows.innerHTML = html;
-  }
-
-  camera(){
-    const h = this.player.alive
-      ? this.player.segments[0]
-      : (this._lastCamAnchor || { x: 0, y: 0 });
-    if (this.player.alive) this._lastCamAnchor = { x: h.x, y: h.y };
-    return { x: h.x - W / 2, y: h.y - H / 2 };
-  }
-
-  draw(){
-    const cam = this.camera();
-
-    // solid dark fill (cheap — no radial gradient per frame)
-    ctx.fillStyle = "#0a0b18";
-    ctx.fillRect(0, 0, W, H);
-
-    // pixel dot grid for parallax — uses fillRect, fast
-    const step = 64;
-    const sx0 = Math.floor(cam.x / step) * step;
-    const sy0 = Math.floor(cam.y / step) * step;
-    ctx.fillStyle = "#1a1430";
-    for (let gx = sx0; gx < sx0 + W + step; gx += step){
-      for (let gy = sy0; gy < sy0 + H + step; gy += step){
-        const px = (gx - cam.x) | 0;
-        const py = (gy - cam.y) | 0;
-        ctx.fillRect(px, py, 2, 2);
-      }
-    }
-    // larger accent dots every 4 grid cells for a layered pixel feel
-    ctx.fillStyle = "#2a1a55";
-    for (let gx = sx0; gx < sx0 + W + step; gx += step * 4){
-      for (let gy = sy0; gy < sy0 + H + step; gy += step * 4){
-        const px = (gx - cam.x) | 0;
-        const py = (gy - cam.y) | 0;
-        ctx.fillRect(px, py, 3, 3);
-      }
+        // 4) Set target angle with a tiny bit of noise (reaction imperfection)
+        let ta = Math.atan2(targetY - hy, targetX - hx);
+        ta += (Math.random() - 0.5) * bot.reactionNoise;
+        bot.targetAngle = ta;
     }
 
-    // food — pre-rendered sprite blits
-    const frameIdx = (performance.now() / 260) | 0;
-    for (let i = 0; i < this.foods.length; i++){
-      const f = this.foods[i];
-      const sx = f.x - cam.x;
-      const sy = f.y - cam.y;
-      if (sx < -20 || sx > W + 20 || sy < -20 || sy > H + 20) continue;
-      const sprite = FOOD_SPRITES[f.pick][(frameIdx + i) & 1];
-      ctx.drawImage(sprite, (sx - 10) | 0, (sy - 10) | 0);
+    /* ---------- Collisions ---------- */
+    function checkCollisions(now) {
+        const allSnakes = [player, ...bots].filter(s => s.alive);
+
+        // Eat food
+        for (const snake of allSnakes) {
+            const hx = snake.head.x, hy = snake.head.y;
+            const eatR = snake.radius + 6;
+            const eatR2 = eatR * eatR;
+            for (let i = foods.length - 1; i >= 0; i--) {
+                const f = foods[i];
+                const dx = f.x - hx, dy = f.y - hy;
+                if (dx * dx + dy * dy < (eatR + f.radius) * (eatR + f.radius)) {
+                    if (f.isBoost) {
+                        snake.refreshBoost(now);
+                        // sparkle particles
+                        for (let k = 0; k < 14; k++) particles.push(new Particle(f.x, f.y, '#6ff'));
+                    } else {
+                        snake.grow(1);
+                        snake.score++;
+                        for (let k = 0; k < 3; k++) particles.push(new Particle(f.x, f.y, f.color));
+                    }
+                    foods.splice(i, 1);
+                }
+            }
+        }
+
+        // Head vs other snakes' bodies → death
+        for (const snake of allSnakes) {
+            if (!snake.alive) continue;
+            const hx = snake.head.x, hy = snake.head.y;
+            const hr = snake.radius;
+            for (const other of allSnakes) {
+                if (other === snake || !other.alive) continue;
+                const body = other.getBodySegments();
+                // skip the very first segment (other's head) to allow head-to-head being handled separately
+                for (let i = 1; i < body.length; i++) {
+                    const s = body[i];
+                    const dx = s.x - hx, dy = s.y - hy;
+                    const minR = hr + other.radius - 2;
+                    if (dx * dx + dy * dy < minR * minR) {
+                        killSnake(snake, other);
+                        break;
+                    }
+                }
+                if (!snake.alive) break;
+            }
+        }
+
+        // Head-to-head: whichever is smaller dies (ties: both die)
+        for (let i = 0; i < allSnakes.length; i++) {
+            const a = allSnakes[i]; if (!a.alive) continue;
+            for (let j = i + 1; j < allSnakes.length; j++) {
+                const b = allSnakes[j]; if (!b.alive) continue;
+                const dx = a.head.x - b.head.x, dy = a.head.y - b.head.y;
+                const minR = a.radius + b.radius;
+                if (dx * dx + dy * dy < minR * minR) {
+                    if (a.segmentCount < b.segmentCount) { killSnake(a, b); }
+                    else if (b.segmentCount < a.segmentCount) { killSnake(b, a); }
+                    else { killSnake(a, b); killSnake(b, a); }
+                }
+            }
+        }
     }
 
-    // snakes
-    for (let i = 0; i < this.snakes.length; i++){
-      const s = this.snakes[i];
-      if (!s.alive) continue;
-      s.draw(ctx, cam, W, H);
+    function killSnake(snake, killer) {
+        if (!snake.alive) return;
+        snake.alive = false;
+        if (killer) killer.kills = (killer.kills || 0) + 1;
+
+        // Scatter food along the body
+        const body = snake.getBodySegments();
+        for (let i = 0; i < body.length; i++) {
+            const s = body[i];
+            if (Math.random() < 0.85) {
+                const f = new Food(
+                    s.x + (Math.random() - 0.5) * 18,
+                    s.y + (Math.random() - 0.5) * 18,
+                    Math.random() < 0.08 // extra chance of boost drop from corpse
+                );
+                foods.push(f);
+            }
+            if (Math.random() < 0.3) {
+                particles.push(new Particle(s.x, s.y, snake.color));
+            }
+        }
     }
-  }
-}
 
-// ============================================================
-//  Screen transitions
-// ============================================================
-function show(el){ el.classList.remove("hidden"); }
-function hide(el){ el.classList.add("hidden"); }
+    /* ---------- Food maintenance ---------- */
+    function maintainFood() {
+        // Remove food that's too far from any living snake
+        const snakes = [player, ...bots].filter(s => s.alive);
+        for (let i = foods.length - 1; i >= 0; i--) {
+            const f = foods[i];
+            let near = false;
+            for (const s of snakes) {
+                const dx = f.x - s.head.x, dy = f.y - s.head.y;
+                if (dx * dx + dy * dy < FOOD_RADIUS * FOOD_RADIUS * 2.25) { near = true; break; }
+            }
+            if (!near) foods.splice(i, 1);
+        }
 
-function startGame(){
-  const level = parseInt(diffSlider.value, 10);
-  game = new Game(level);
-  hide(startScreen);
-  hide(overScreen);
-  hide(winScreen);
-  show(hud);
-}
+        // Spawn new food around player (infinite map feel)
+        let added = 0;
+        while (foods.length < FOOD_TARGET && added < 25) {
+            const a = Math.random() * Math.PI * 2;
+            const r = FOOD_RADIUS * (0.25 + Math.random() * 0.75);
+            foods.push(new Food(player.head.x + Math.cos(a) * r, player.head.y + Math.sin(a) * r));
+            added++;
+        }
+    }
 
-function showGameOver(g){
-  const elapsed = Math.round((performance.now() - g.startTime) / 1000);
-  overLen.textContent = g.player.length_units;
-  overKills.textContent = g.kills;
-  overTime.textContent = elapsed + "s";
-  hide(hud);
-  show(overScreen);
-}
+    /* ---------- Rendering ---------- */
+    function drawBackground() {
+        // Base
+        ctx.fillStyle = '#05060f';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-function showVictory(g){
-  const elapsed = Math.round((performance.now() - g.startTime) / 1000);
-  winLen.textContent = g.player.length_units;
-  winKills.textContent = g.kills;
-  winTime.textContent = elapsed + "s";
-  hide(hud);
-  spawnConfetti();
-  show(winScreen);
-}
+        // Subtle nebula vignette
+        const vg = ctx.createRadialGradient(
+            canvas.width / 2, canvas.height / 2, 100,
+            canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height)
+        );
+        vg.addColorStop(0, 'rgba(40, 60, 120, 0.15)');
+        vg.addColorStop(1, 'rgba(0, 0, 0, 0.8)');
+        ctx.fillStyle = vg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-startBtn.addEventListener("click", startGame);
-retryBtn.addEventListener("click", () => {
-  hide(overScreen);
-  show(startScreen);
-});
-winBtn.addEventListener("click", () => {
-  hide(winScreen);
-  show(startScreen);
-});
+        // Grid
+        const gridSize = 90;
+        ctx.strokeStyle = 'rgba(120, 180, 255, 0.07)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        const ox = -camera.x % gridSize;
+        const oy = -camera.y % gridSize;
+        for (let x = ox; x < canvas.width; x += gridSize) {
+            ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
+        }
+        for (let x = ox - gridSize; x > 0; x -= gridSize) {
+            ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height);
+        }
+        for (let y = oy; y < canvas.height; y += gridSize) {
+            ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
+        }
+        for (let y = oy - gridSize; y > 0; y -= gridSize) {
+            ctx.moveTo(0, y); ctx.lineTo(canvas.width, y);
+        }
+        ctx.stroke();
 
-// ============================================================
-//  Main loop
-// ============================================================
-function frame(now){
-  if (game) {
-    game.tick(now);
-    game.draw();
-  } else {
-    ctx.fillStyle = "#05060f";
-    ctx.fillRect(0, 0, W, H);
-  }
-  requestAnimationFrame(frame);
-}
-requestAnimationFrame(frame);
+        // Accent dots at larger intervals
+        const big = gridSize * 4;
+        ctx.fillStyle = 'rgba(120, 180, 255, 0.25)';
+        const bx = -camera.x % big;
+        const by = -camera.y % big;
+        for (let x = bx; x < canvas.width; x += big) {
+            for (let y = by; y < canvas.height; y += big) {
+                ctx.beginPath();
+                ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    function drawMinimap() {
+        mctx.clearRect(0, 0, 180, 180);
+        const range = 3500;
+        // center dot
+        mctx.fillStyle = 'rgba(100, 180, 255, 0.05)';
+        mctx.fillRect(0, 0, 180, 180);
+        // food blobs (sampled)
+        mctx.fillStyle = 'rgba(120, 200, 255, 0.25)';
+        for (let i = 0; i < foods.length; i += 8) {
+            const f = foods[i];
+            const mx = 90 + (f.x - player.head.x) / range * 90;
+            const my = 90 + (f.y - player.head.y) / range * 90;
+            if (mx < 2 || mx > 178 || my < 2 || my > 178) continue;
+            mctx.fillRect(mx, my, 1, 1);
+        }
+        // bots
+        for (const b of bots) {
+            if (!b.alive) continue;
+            const mx = 90 + (b.head.x - player.head.x) / range * 90;
+            const my = 90 + (b.head.y - player.head.y) / range * 90;
+            if (mx < 4 || mx > 176 || my < 4 || my > 176) {
+                // clamp to edge indicator
+                const cx = Math.max(4, Math.min(176, mx));
+                const cy = Math.max(4, Math.min(176, my));
+                mctx.fillStyle = b.color + 'aa';
+                mctx.beginPath();
+                mctx.arc(cx, cy, 2, 0, Math.PI * 2);
+                mctx.fill();
+                continue;
+            }
+            mctx.fillStyle = b.color;
+            mctx.beginPath();
+            mctx.arc(mx, my, 3.5, 0, Math.PI * 2);
+            mctx.fill();
+        }
+        // player
+        mctx.fillStyle = '#6ff';
+        mctx.shadowColor = '#6ff';
+        mctx.shadowBlur = 8;
+        mctx.beginPath();
+        mctx.arc(90, 90, 4, 0, Math.PI * 2);
+        mctx.fill();
+        mctx.shadowBlur = 0;
+        // border
+        mctx.strokeStyle = 'rgba(120, 200, 255, 0.3)';
+        mctx.strokeRect(0.5, 0.5, 179, 179);
+    }
+
+    function render(now) {
+        drawBackground();
+
+        // foods
+        for (const f of foods) f.draw(now);
+
+        // particles
+        for (const p of particles) p.draw();
+
+        // Sort snakes by length so longest draws last (on top)
+        const ordered = [player, ...bots].slice().sort((a, b) => a.segmentCount - b.segmentCount);
+        for (const s of ordered) s.draw(now);
+
+        drawMinimap();
+    }
+
+    /* ---------- HUD ---------- */
+    function updateHUD(now) {
+        document.getElementById('score').textContent = player.score;
+        document.getElementById('scoreFill').style.width = Math.min(100, (player.score / VICTORY_ORBS) * 100) + '%';
+        document.getElementById('bots').textContent = bots.filter(b => b.alive).length;
+        document.getElementById('length').textContent = player.segmentCount;
+
+        const boostFill = document.getElementById('boostFill');
+        const boostLabel = document.getElementById('boostLabel');
+        if (player.boosting) {
+            const remain = Math.max(0, player.boostEndTime - now);
+            boostFill.style.width = (remain / BOOST_DURATION) * 100 + '%';
+            boostLabel.textContent = 'BOOSTING';
+            boostLabel.classList.remove('ready');
+        } else if (now >= player.boostCooldownEnd) {
+            boostFill.style.width = '100%';
+            boostLabel.textContent = 'BOOST READY';
+            boostLabel.classList.add('ready');
+        } else {
+            const remain = player.boostCooldownEnd - now;
+            const pct = 100 - (remain / BOOST_COOLDOWN) * 100;
+            boostFill.style.width = pct + '%';
+            boostLabel.textContent = 'Cooldown ' + Math.ceil(remain / 1000) + 's';
+            boostLabel.classList.remove('ready');
+        }
+    }
+
+    /* ---------- Main Loop ---------- */
+    function loop(now) {
+        requestAnimationFrame(loop);
+        if (!running) return;
+
+        /* --- Input (player) --- */
+        let ax = 0, ay = 0;
+        if (keys['arrowleft'] || keys['a']) ax -= 1;
+        if (keys['arrowright'] || keys['d']) ax += 1;
+        if (keys['arrowup'] || keys['w']) ay -= 1;
+        if (keys['arrowdown'] || keys['s']) ay += 1;
+
+        if (ax || ay) {
+            player.targetAngle = Math.atan2(ay, ax);
+        } else {
+            const mx = mouse.x - canvas.width / 2;
+            const my = mouse.y - canvas.height / 2;
+            if (mx * mx + my * my > 25) player.targetAngle = Math.atan2(my, mx);
+        }
+
+        /* --- Update --- */
+        player.update(now);
+        for (const b of bots) {
+            updateAI(b, now);
+            b.update(now);
+        }
+
+        checkCollisions(now);
+        maintainFood();
+
+        // particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+            particles[i].update();
+            if (particles[i].life <= 0) particles.splice(i, 1);
+        }
+
+        // camera follows player smoothly
+        camera.x += (player.head.x - camera.x) * 0.12;
+        camera.y += (player.head.y - camera.y) * 0.12;
+
+        /* --- Win/Lose --- */
+        if (!player.alive) {
+            endGame(false);
+        } else if (player.score >= VICTORY_ORBS || bots.every(b => !b.alive)) {
+            endGame(true);
+        }
+
+        render(now);
+        updateHUD(now);
+    }
+
+    /* ---------- Start / End ---------- */
+    function startGame() {
+        document.getElementById('startScreen').classList.add('hidden');
+        document.getElementById('endScreen').classList.add('hidden');
+        document.getElementById('hud').classList.remove('hidden');
+        document.getElementById('boostHud').classList.remove('hidden');
+        document.getElementById('minimap').classList.remove('hidden');
+        initGame();
+    }
+
+    function endGame(victory) {
+        if (!running) return;
+        running = false;
+        const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+        setTimeout(() => {
+            document.getElementById('endScreen').classList.remove('hidden');
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('boostHud').classList.add('hidden');
+            document.getElementById('minimap').classList.add('hidden');
+            document.getElementById('endTitle').textContent = victory ? 'VICTORY' : 'ELIMINATED';
+            document.getElementById('endMsg').textContent = victory
+                ? 'You are the serpent king'
+                : 'The arena claims another';
+            document.getElementById('endStats').innerHTML =
+                `ORBS: ${player.score}  &middot;  LENGTH: ${player.segmentCount}  &middot;  KILLS: ${player.kills || 0}  &middot;  TIME: ${elapsed}s`;
+        }, 700);
+    }
+
+    /* ---------- Difficulty UI ---------- */
+    const diffDescs = {
+        1: 'Casual — docile serpents',
+        2: 'Easy — a gentle warmup',
+        3: 'Balanced — a fair challenge',
+        4: 'Hard — cunning predators',
+        5: 'Insane — merciless hunters',
+    };
+
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            difficulty = parseInt(btn.dataset.diff, 10);
+            document.getElementById('diffDesc').textContent = diffDescs[difficulty];
+        });
+    });
+
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('restartBtn').addEventListener('click', () => {
+        document.getElementById('endScreen').classList.add('hidden');
+        document.getElementById('startScreen').classList.remove('hidden');
+    });
+
+    // kick off render loop
+    requestAnimationFrame(loop);
+
+    // Render a subtle idle animation on the canvas behind the start screen
+    (function idleRender() {
+        if (!running) {
+            ctx.fillStyle = '#05060f';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        requestAnimationFrame(idleRender);
+    })();
 </script>
+
 </body>
 </html>
